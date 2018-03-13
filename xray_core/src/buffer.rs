@@ -3,7 +3,6 @@ use std::cmp;
 use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::ops::{Add, AddAssign, Sub, Range};
-use std::rc::Rc;
 use std::result;
 use std::sync::Arc;
 use super::tree::{self, Tree, SeekBias};
@@ -88,7 +87,7 @@ struct ChangeId {
 }
 
 #[derive(Ord, PartialOrd, Eq, PartialEq, Clone, Debug)]
-struct FragmentId(Rc<Vec<u16>>);
+struct FragmentId(Arc<Vec<u16>>);
 
 #[derive(Eq, PartialEq, Clone, Debug)]
 struct Fragment {
@@ -711,13 +710,18 @@ impl<'a> From<Vec<u16>> for Text {
     }
 }
 
+lazy_static! {
+    static ref FRAGMENT_ID_MIN_VALUE: FragmentId = FragmentId(Arc::new(vec![0 as u16]));
+    static ref FRAGMENT_ID_MAX_VALUE: FragmentId = FragmentId(Arc::new(vec![u16::max_value()]));
+}
+
 impl FragmentId {
     fn min_value() -> Self {
-        FragmentId(Rc::new(vec![0 as u16]))
+        FRAGMENT_ID_MIN_VALUE.clone()
     }
 
     fn max_value() -> Self {
-        FragmentId(Rc::new(vec![u16::max_value()]))
+        FRAGMENT_ID_MAX_VALUE.clone()
     }
 
     fn between(left: &Self, right: &Self) -> Self {
@@ -739,7 +743,7 @@ impl FragmentId {
             }
         }
 
-        FragmentId(Rc::new(new_entries))
+        FragmentId(Arc::new(new_entries))
     }
 }
 
