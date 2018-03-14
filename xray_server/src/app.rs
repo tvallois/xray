@@ -1,24 +1,17 @@
 extern crate xray_core;
 
-use std::io;
-use std::rc::Rc;
-use tokio_core::reactor::Handle;
-use futures::{Async, Future, Poll};
-use futures::stream::{self, Stream};
+use futures::{Async, Future, Stream, Sink, Poll};
 use futures::sync::mpsc;
-use futures::sink::Sink;
-use tokio_io::codec::Framed;
 use messages::{IncomingMessage, OutgoingMessage};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::rc::Rc;
 
 type Tx = mpsc::UnboundedSender<OutgoingMessage>;
 type Rx = mpsc::UnboundedReceiver<OutgoingMessage>;
 
-struct WorkspaceView {
-    id: usize,
-}
+struct WorkspaceView;
 
 pub struct App {
     shared: Rc<RefCell<Shared>>,
@@ -117,9 +110,7 @@ where
         let workspace_id = shared.next_workspace_id;
         shared.next_workspace_id += 1;
         
-        shared.workspace_views.insert(workspace_id, WorkspaceView {
-            id: workspace_id
-        });
+        shared.workspace_views.insert(workspace_id, WorkspaceView);
         
         if let &mut Some(ref mut sender) = &mut shared.application_sender {
             sender.start_send(OutgoingMessage::OpenWindow{workspace_id});
