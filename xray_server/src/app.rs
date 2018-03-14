@@ -24,11 +24,11 @@ struct Shared {
     workspace_views: HashMap<usize, WorkspaceView>,
 }
 
-pub struct Client<Socket>
+pub struct Client
 where
     Socket: Stream<Item = IncomingMessage> + Sink<SinkItem = OutgoingMessage>,
 {
-    socket: Socket,
+    socket_write: Box<Future<Item=(), Error=()>>,
     rx: Option<Rx>,
     shared: Rc<RefCell<Shared>>,
 }
@@ -60,9 +60,9 @@ where
                 Ok(Async::NotReady) => {
                     break;
                 },
-            }            
+            }
         }
-        
+
 
         if let Some(ref mut rx) = self.rx {
             loop {
@@ -73,7 +73,7 @@ where
                     _ => {
                         break;
                     },
-                }        
+                }
             }
             self.socket.poll_complete();
         }
@@ -99,7 +99,7 @@ where
     fn start_window(&mut self, workspace_id: usize) -> Poll<(), ()> {
         let mut shared = self.shared.borrow_mut();
         let workspace_view = shared.workspace_views.get(&workspace_id).ok_or(())?;
-        
+
         self.socket.start_send(OutgoingMessage::WindowState);
         self.socket.poll_complete();
         Ok(Async::NotReady)
@@ -109,9 +109,9 @@ where
         let mut shared = self.shared.borrow_mut();
         let workspace_id = shared.next_workspace_id;
         shared.next_workspace_id += 1;
-        
+
         shared.workspace_views.insert(workspace_id, WorkspaceView);
-        
+
         if let &mut Some(ref mut sender) = &mut shared.application_sender {
             sender.start_send(OutgoingMessage::OpenWindow{workspace_id});
             sender.poll_complete();
@@ -139,6 +139,11 @@ impl App {
     where
         Socket: Stream<Item = IncomingMessage> + Sink<SinkItem = OutgoingMessage>,
     {
+        let (tx, rx) = mpsc::unbounded();
+        let (outgoing, incoming) = socket.split();
+
+        let send_outgoing = outgoing.send_all(rx.map_err(|_| unreachable!()));
+
         Client {
             socket: socket,
             rx: None,
